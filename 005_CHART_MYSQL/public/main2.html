@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script scr="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    </head>
+    <body>
+        <div>
+            <canvas id="myChart" width="400" height="320"></canvas>
+        </div>
+        <div>
+            <label">빌딩 아이디</label>
+            <input type="text" id="buildingid">
+            <button id="chardatafrom"></button>
+        </div>
+    </body>
+    <script>
+        let myChart=undefined;
+
+        const btn=document.getElementById('chardatafromdb');
+        const bid=document.getElementById('buildingid')
+        btn.addEventListener('click',()=>{
+            //입력된 building id 추출
+            console.log('building id : %s',bid.vlaue)
+            //svr에 데이터를 요청, 데이터를 받아서 그래프를 그림
+            chartDataFromDB();
+        })
+
+        const chartDataFromDB=(bid)=>{
+            
+            //svr에 데이터 요청
+            fetch('/chartdatafromdbwithbid',{
+                method:'post',
+                headers:{
+                    'content-type':'applicaton/json'
+                },
+                body:JSON.stringify({
+                    'bid':bid
+                })
+            }).then((res)=>res.json())
+            .then((res)=>{
+                //받아온 데이터를 가지고, 그래프를 그림
+                if(res.result!='ok'){
+                    console.log('result is not ok');
+                    return;
+                }
+
+                let reg_data_obj=[];//x축
+                let temp_obj=[];//y축
+
+                for(let i=0;i<res.temp.length;i++){
+                    reg_data_obj.push(res.reg_date[i]);
+                    temp_obj.push(res.temp[i]);
+                }
+
+                //그래프를 그리기 위한 준비
+                const date={
+                    labels:reg_date_obj,
+                    datasets:[{
+                        label:'온도',
+                        borderColor:'rgb(255,99,132)',
+                        data:temp_obj
+                    }]
+                }
+                const config={
+                    type:'line',
+                    date:data,
+                    options:{
+                        responsive:true,
+                        mainAspectRatio:false
+                    }
+                }
+
+                //진짜로 그래프 그림
+                if(myChart!==undefined){
+                    myChart.destroy();
+                }
+                myChart=new Chart(document.getElementById('myChart'),config)
+            })
+        }
+    </script>
+</html>

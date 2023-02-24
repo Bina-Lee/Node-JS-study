@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://unpkg.com/fabric@4.6.0/dist/fabric.min.js"></script>
+        
+        <title>Fabricjs DB Test</title>
+    </head>
+
+    <body>
+        <div>
+            <canvas id="c" width="500" height="500" tabindex="1"></canvas>
+        </div>
+        <div>
+            <label >이미지 이름</label>
+            <input type="text" id="imgname">
+            <button id="loadbtn">이미지 가져오기</button>
+            <button id="savebtn">저장할거면 누르던지</button>
+        </div>
+
+        <script>
+            const canvas=new fabric.Canvas('c')
+
+            //이미지를 불러서 background로 설정
+            document.getElementById('loadbtn').addEventListener('click',async()=>{
+                console.log(`가져올 이미지 : ${document.getElementById('imgname').value}`)
+
+                const response=await fetch('/getimgfromdbbyname',{
+                    method:'POST',
+                    headers:{
+                        'Content-Type':'application/json'
+                    },
+                    body:JSON.stringify({
+                        imgname:document.getElementNyId('imgname').value
+                    })
+                })
+
+                if(response.ok){
+                    const res=res=await response.json();
+                    const status=res['status']
+
+                    if(status==='ok'){
+                        //이미지를 받아서 canvas에 그림
+
+                        const imgdata=res['rows'][0]['img']['data']
+
+                        const binary=new Uint8Array(imgdata)
+                        const blob=new Blob([binary],{type: 'image/jpeg'})
+                        const kimg=new Image()
+                        kimg.src=URL.createObjectURL(blob)
+                        await kimg.decode()
+                        canvas.clear()
+                        fabric.Image.fromObject(kimg,(img)=>{
+                            canvas.setBackgroundImage(img,canvas.renderAll.bind(canvas),{
+                                scaleX: canvas.width/kimg.width,
+                                scaleY: canvas.height/kimg.height
+                            })
+                        })
+                    }
+                    else{
+                        alert(`에러 발생: ${status}`)
+                        return;
+
+                    }
+                }
+
+            })
+
+            let isDown=false;
+            let ox,oy;
+            let rect;
+            //마우스 상태에 따른 이벤트 처리들
+            canvas.on('mouse:down',(o)=>{
+
+                if(o.target){
+                    return;
+                }
+
+                isDown=true;
+                const pointer=canvas.getPointer(o.e)
+                ox=pointer.scaleXoy=pointer.scaleY
+                rect=new fabric.Rect({
+                    originX: 'left',
+                    originY: 'top',
+                    left: ox,
+                    top: oy,
+                    width: pointer.x-ox,
+                    height:pointer.y-oy,
+                    angle:0,
+                    fill:'rgba(255,0,0,5)',
+                    transparentCorners:false
+                })
+                rect.setControlVisibility({mtr:false})//사각형 회전 비활성화
+                canvas.add(rect)
+            })
+
+            canvas.on('mouse:move',(o)=>{
+                if(!isDown){
+                    return;
+                }
+
+                const pointer=canvas.getPointer(o.e)
+
+                if(ox>pointer.x){
+                    rect.set({
+                        left:pointer.x
+                    })
+                }
+
+                if(oy>pointer.y){
+                    rect.set({
+                        top:pointer.y
+                    })
+                }
+
+                rect.set({
+                    width:math.abs(ox-pointer.x),
+                    height:math.abs(oy-pointer.y)
+                })
+
+                canvas.renderAll();
+            })
+            
+            canvas.on('mouse:up',(o)=>{
+
+                if(rect){
+                    if(rect.width<10||rect.height<10){
+                        canvas.remove(rect)
+                    }
+                }       // 사이즈가 너무 작으면 사각형 삭제시킴
+
+                isDown=false;
+                rect=undefined;
+            })
+
+            document.onkeydown=(e)=>{
+                switch(e.keyCode){
+                    case 46://delete
+                    canvas.remove(canvas.getActiveObject());
+                    break;
+                }
+                canvas.renderAll();
+            }
+
+            document.getElementById('savabtn').addEventListener('click',async ()=>{
+                const objects=canvas.getObjects('rect')
+
+                const coords=[]
+
+                objects.forEach((object)=>{
+                    //console.log(`BBOX 정보 : ${Object.keys(object)}`)
+                    console.log(`left:${object.left} top:${object.top} width:${object.width} height:${object.height}`)
+                    
+                    coords.push(`${object.left} ${object.top} ${object.width} ${object.height}`)
+                })
+
+                const data_to_be_stored={
+                    imgname:document.getElementById('imgname').value,
+                    coords: coords.join('\n')
+                }
+
+                const response=await fetch('/saveBbox',{
+                    method:'POST',
+                    headers:{
+                        'Context-Type':'application/json'
+                    },
+                    body: JSON.stringify(data_to_be_stored)
+                })
+
+                if(response.ok){
+                    const res=await response.json()
+                    if(res['status']=='ok'){
+                        alert('저장에 성공')
+                        return;
+                    }
+                }
+            })
+
+            //canvas.add(rect)
+        </script>
+    </body>
+
+</html>

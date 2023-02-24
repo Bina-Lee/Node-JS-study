@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Vanvas Image Database Node</title>
+    </head>
+<body>
+    <div>
+        <canvas id="my_canvas" width="500" height="500"></canvas>
+    </div>
+</body>
+<script>
+    const my_canvas=document.getElementById('my_canvas')
+    const ctx=my_canvas.getContext('2d')
+    //developer.mozilla.org
+
+    //ctx.fillStyle='blue';
+    // ctx.strokeRect(10,10,490,490);
+
+    // ctx.beginPath();
+    // ctx.arc(75,75,50,0,Math.PI*2,true);
+    // ctx/moveTo(110,75);
+    // ctx.arc(75,75,35,0,Math.PI*2,false);
+    // ctx.moveTo(65,65);
+    // ctx.arc(60,65,5,0,Math.PI*2,true);
+    // ctx.moveTo(95,65);
+    // ctx.arc(90,65,5,0,Math.PI*2,true);
+    // ctx.stroke();
+
+    const response=fetch('/getimgfromdb',{
+        method:'post',
+        headers:{
+            'content-type':'application/json'
+        }
+    }).then((res)=>res.json())
+    .then(async (res)=>{
+        const binary=new Uint8Array(res['result'][0]['img']['data'])
+        const blob=new Blob([binary],{type:'image/jpeg'})
+        const kimg=new Image()
+
+        kimg.src=URL.createObjectURL(blob)
+
+        const imgLoadingDone=await kimg.decode()
+
+        ctx.drawImage(kimg,0,0)
+    })
+</script>
+</html>
